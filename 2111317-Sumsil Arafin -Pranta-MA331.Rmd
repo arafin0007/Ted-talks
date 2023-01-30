@@ -1,0 +1,150 @@
+---
+title: "MA331-Coursework"
+author: "2111317-Sumsil Arafin-Pranta"
+subtitle: Text analytics of the TED talks by Stefan Sagmeister and Steven Pinker
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+### Don't delete this setup code chunk from your file
+knitr::opts_chunk$set(echo = FALSE)   ## DON'T ALTER THIS: this is to prevent printing the code in your "html" file.
+
+# Extend the list below to load all the packages required for your analyses here:
+#===============================================================================
+library(dsEssex)
+library(tidyverse)
+library(tidytext)
+library(ggrepel)
+library(DiagrammeR)
+# load the 'ted_talks' data
+#=========================
+data(ted_talks)
+# data only for  my two speakers
+MyData <- ted_talks %>%
+  filter(speaker %in% c("Stefan Sagmeister", "Steven Pinker"))
+```
+
+## Introduction
+
+Multiple platforms on the internet now generate large amounts of data, which continues to grow exponentially. The majority of the information on the internet is in the form of text. So many organizations, businesses, and political organizations are beginning to see the potential value lying untapped in their text data. The information extracted from these textual data sources is useful for a variety of applications and decision-making. The goal of this report is to show how text analysis can be used to present and compare word frequencies and sentiment analyses. TED Talks are videos by expert speakers in the fields of education, business, science, technology, creativity, etc. So, for this project, we'll utilize sentimental analysis and text mining on the script to analyze the Ted Talks delivered by Stefan Sagmeister and Steven Pinker and find out the common words used by speakers in these Ted Talks, how often they use them, and their emotion throughout the speech. In our data, we have Stefan Sagmeister, an Austrian graphic designer who gave two speeches named “Happiness by design”, in April 2007 and “Things I’ve learned in my life so far”, in September 2008. On the other hand, Steven Arthur Pinker is a Canadian American cognitive psychologist, psycholinguist, popular science author, and public intellectual who gave three speeches “The surprising decline in violence “ in September 2007, “Human nature and the blank slate”, in September 2008, “The long reach of reason”, in Mar 2014.
+
+
+## Methods
+
+__Load data:__
+In order to start the analysis, (ted_talks) the dataset was loaded and pre-processed. Because the dataset is full of other speakers, only the data of Stefan Sagmeister and Steven Pinker was filtered. 
+
+__Pre-processing:__
+The next step was tokenization in order to turn each word into a token. But still, the data contained words and characters which has no impact on the analysis. For that reason, stop words were removed. 
+
+__Word frequency and presentation:__
+The next step was getting the top words for both speakers and a good visualization (row chart) method to show them.
+
+__Comparison:__
+These steps involved comparing things after getting their frequency.
+
+__Sentiment analysis:__
+Finally, it was the step to detect the sentiment or emotion (like positive or negative) behind the words.
+```{r simple flow cart}
+grViz(diagram = "digraph flowchart {
+graph [layout= dot, rankdir= LR]
+  node [fontname = arial, shape = squre, color = violet, style = filled]
+  tab1 [label = '@@1']
+  tab2 [label = '@@2']
+  tab3 [label = '@@3']
+  tab4 [label = '@@4']
+  tab5 [label = '@@5']
+  
+  tab1 -> tab2 -> tab3 -> tab4 -> tab5;
+}
+  
+  [1]: 'Load data'
+  [2]: 'Pre-processing'    
+  [3]: 'Top words'
+  [4]: 'Comparing '
+  [5]: 'Sentiment analysis'
+  
+  ")
+```
+## Results
+The frequency of each speaker's word count is displayed in this subsection. A simple pink row chart shows the word count frequency from  Stefan Sagmeister’s word, showing that the __know__  term has the highest frequency which is repeated 23 times. On the other hand, the blue chart and the table showed that Steven Pinker used the word __can__ 55 times which is the highest for him. In charts, only the top 25 words for both of the speakers were shown.
+
+
+```{r, echo=FALSE, message=FALSE}
+# Tokenization: makeing the data into single words for analysis.  
+tidy_talks <- MyData %>% 
+  tidytext::unnest_tokens(word, text)
+# Remove the word laughter because in ted script it adds people,s laugh auto as laughter
+remove_extra <- tidy_talks %>%
+  filter(word == "laughter" | word == "sp" | word == "mg"| word =="rng")
+# stop words:remove all the unwanted data that is not important for analysis 
+ted_talks_nonstop <- tidy_talks %>%
+  dplyr::anti_join(get_stopwords()) %>%
+  dplyr::anti_join(remove_extra)
+# removes number
+ted_talks_nonstop <- ted_talks_nonstop %>%
+  filter(!str_detect(word, "\\d"))
+# Here we get top words for Stefan Sagmeister
+Stefan_words <- ted_talks_nonstop %>%
+  dplyr::filter(speaker == "Stefan Sagmeister") %>% 
+  dplyr::count(speaker, word, sort = TRUE)
+head (Stefan_words)
+# Here we get top words for Stefan Sagmeister
+Pinker_words <- ted_talks_nonstop %>%
+  dplyr::filter(speaker == "Steven Pinker") %>% 
+  dplyr::count(speaker, word, sort = TRUE)
+head (Pinker_words)
+# Visualization: Simple presentation of Stefan's word 
+Stefan_words  %>%
+  dplyr::slice_max(n, n = 25) %>%
+  dplyr::mutate(word = reorder(word, n)) %>%
+  ggplot2::ggplot(aes(n, word)) + ggplot2::geom_col(fill="pink")
+# Visualization: Simple presentation of Pinker's words 
+Pinker_words %>%
+  dplyr::slice_max(n, n = 25) %>%
+  dplyr::mutate(word = reorder(word, n)) %>%
+  ggplot2::ggplot(aes(n, word)) + ggplot2::geom_col(fill= "light blue")
+
+```
+
+
+After that, a simple graph was drawn to show some common words. The words which is near to the red line is actually the words they both tends to speak equally and also the graph compared the frequencies of the words they used.On the upper side of the line you see the the words that was emphasized by Pinker and lower was by Stefan.
+
+
+
+```{r comparing word counts}
+dplyr::bind_rows(Stefan_words, Pinker_words) %>%
+  group_by(word) %>%
+  filter(sum(n) > 10) %>%
+  ungroup() %>%
+  pivot_wider(names_from = "speaker", values_from = "n", values_fill = 0) %>%
+  ggplot(aes(`Stefan Sagmeister`, `Steven Pinker`)) +
+  geom_abline(color = "red", size = 1.2, alpha = 0.8, lty = 2) + 
+  geom_text_repel(aes(label = word), max.overlaps = 25)
+
+```
+
+__Sentiment Analysis:__ Joy, anticipation, surprise, positive and trust are five attitudes that reoccur throughout the data set of Stefan Sagmeister’s presentations, as shown in the bar plot below. In his speeches, most of the words he used indicate that he is going toward a positive feeling. He used the words happy,happiness,well which indicates the feeling of joy.So it means for Stefan, the odds of getting joy or positive emotions is more than Pinker.On the other hand anger, negative, disgust, fear, sadness are five sentiments that reoccur across the data set of Steven Pinker’s TED presentations. The words like decline, think, violence was used the most in the discussions. That is why his overall words gives a ratio towards negative.
+
+
+```{r sentiment analysis , message=FALSE}
+tidy_talks %>%
+  inner_join(get_sentiments("nrc"), by = "word")%>%
+count(speaker, sentiment) %>%
+  pivot_wider(names_from = speaker, values_from = n, values_fill = 0)%>%
+mutate(OR = dsEssex::compute_OR(`Stefan Sagmeister`, `Steven Pinker`, correction = FALSE), log_OR = log(OR), sentiment = reorder(sentiment, log_OR)) %>%
+  ggplot(aes(sentiment, log_OR, fill = log_OR < 0)) +
+  geom_col() +
+  ylab("Log odds ratio") + ggtitle("Plot of sentiment analysis") +
+  coord_flip() + 
+  scale_fill_manual(name = "", values = c("pink", "skyblue"))+
+  scale_fill_discrete(name="Speaker", labels=c("Stefan", "Pinker"))
+```
+
+
+
+## Discussion
+
+To sum up we can say that this project gives us a clear idea about how text can be turned into tokens, how we can exclude unnecessary data and get top words and get the emotions behind it.But main limitation of this project was some extra sound that subtitle generater created like the word laughter.So we had to saw the videos very carefully to identify those kinds of words.Because each of the speakers got above two videos and they talked in different tones and used sarcasm, it was challenging for us to get the right words and right emotions.Also there were a lot of words that can indicate both positive and negative emotions.We can solve this problems by using many sentiment analysis tool in future.Again in recent times we use a lot of emojis or gif's in our text. So in future i would like to extend my work and do research on how can we get the sentiments behind the emojis or gif's.
